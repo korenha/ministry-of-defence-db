@@ -183,7 +183,5 @@ class DBTable(db_api.DBTable):
     def __get_path_of_key(self, key: Any) -> str:
         with open(self.__TABLE_NAME__PATH + "_key_index.db", "rb") as bson_file:
             keys_dict = bson.decode_all(bson_file.read())
-            try:
-                return keys_dict[0][key]
-            except KeyError:
-                return None
+            return keys_dict[0].get(key)
+
