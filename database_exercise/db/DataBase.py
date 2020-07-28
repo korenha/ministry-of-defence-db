@@ -14,10 +14,8 @@ from pathlib import Path
 
 
 class DataBase(db_api.DataBase):
-    __PATH = Path("db_files")
     __TABLES = dict()
-    __BACKUP_PATH = Path("db_files_backup")
-    __DATA_INFO_PATH = Path("db_files/data_base_info.db")
+    __METADATA_PATH = Path(f"{db_api.DB_ROOT}/METADATA.db")
 
     def __init__(self):
         if not Path(f"{db_api.DB_ROOT}/DB.db").is_file():
@@ -40,12 +38,9 @@ class DataBase(db_api.DataBase):
         if key_field_name not in [field.name for field in fields]:
             raise ValueError
         try:
-            os.mkdir(Path(os.path.join(DataBase.__PATH, table_name)))
-            new_table = DBTable(table_name, fields, key_field_name,
-                                os.path.join(DataBase.__PATH, table_name))
+            new_table = DBTable(table_name, fields, key_field_name)
             DataBase.__TABLES[table_name] = new_table
             self.__add_table_info(new_table, table_name)
-            # self.__backup()
             return new_table
         except FileExistsError:
             print(f"{table_name} is already exist")
@@ -59,11 +54,10 @@ class DataBase(db_api.DataBase):
 
     def delete_table(self, table_name: str) -> None:
         try:
-            shutil.rmtree(os.path.join(DataBase.__PATH, table_name))
+            shutil.rmtree(os.path.join(db_api.DB_ROOT, table_name))
             del DataBase.__TABLES[table_name]
         except FileNotFoundError:
             print(f"Failed to delete table {table_name}")
-        # self.__backup()
 
     def get_tables_names(self) -> List[Any]:
         return list(DataBase.__TABLES.keys())

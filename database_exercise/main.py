@@ -153,17 +153,17 @@ def test_performance(new_db: DataBase) -> None:
 
 # def test_bad_key(new_db: DataBase) -> None:
 #     _ = new_db.create_table('Students', STUDENT_FIELDS, 'BAD_KEY')
-
+import bson
 # test_reload_from_backup(Path("database_exercise/db_files_backup"))
 # test_50_students(DataBase())
 # test_create(DataBase())
 test_50_students(DataBase())
-# db = DataBase()
+db = DataBase()
 # # print(db.num_tables())
-# students = db.get_table("Students")
+students = db.get_table("Students")
 # students.insert_record([])
 # import bson
-# students.create_index('First')
-# with open("database_exercise/db_files/Students/Students_First_index.bson","rb") as the_file:
-#     print(bson.decode_all(the_file.read())[0])
+students.create_index('First')
+with open("db_files/Students/Students_First_index.db","rb") as the_file:
+    print(bson.decode_all(the_file.read())[0])
 
