@@ -1,8 +1,8 @@
-from database_exercise.db_api import SelectionCriteria
+import db_api
 from typing import Any
 
 
-class MySelectionCriteria(SelectionCriteria):
+class SelectionCriteria(db_api.SelectionCriteria):
     def __init__(self, field_name: str, operator: str, value: Any):
         self.field_name = field_name
         self.operator = operator
