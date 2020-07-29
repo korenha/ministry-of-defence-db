@@ -10,7 +10,6 @@ import pickle
 from pathlib import Path
 from collections import defaultdict
 
-
 operator_dict = {"<": lt, ">": gt, "=": eq, "!=": ne, "<=": le, ">=": ge, "is": is_, "is not": is_not}
 
 
@@ -27,7 +26,7 @@ class DBTable(db_api.DBTable):
         self.__num_rows = 0
         self.__num_of_blocks = 1
         self.__blocks_have_place = {1: self.__MAX_ROWS}
-        self.__indexes = {self.__KEY_FIELD_NAME:f"{self.__TABLE_NAME__PATH}_{self.__KEY_FIELD_NAME}_index.db"}
+        self.__indexes = {self.__KEY_FIELD_NAME: f"{self.__TABLE_NAME__PATH}_{self.__KEY_FIELD_NAME}_index.db"}
         os.mkdir(Path(self.__PATH))
         with open(self.__indexes[self.__KEY_FIELD_NAME], "wb") as bson_file:
             bson_file.write(BSON.encode(dict()))
@@ -82,17 +81,19 @@ class DBTable(db_api.DBTable):
             with open(self.__indexes[field_name], "rb") as bson_file:
                 index_dict = defaultdict(dict)
                 index_dict.update(bson.decode_all(bson_file.read())[0])
-                index_dict[str(values[field_name])][str(values[self.__KEY_FIELD_NAME])] = path
+                index_dict[str(values.get(field_name, ""))][str(values[self.__KEY_FIELD_NAME])] = path
             with open(self.__indexes[field_name], "wb") as bson_file:
                 bson_file.write(BSON.encode(index_dict))
         self.__backup()
 
     def delete_record(self, key: Any) -> None:
         path = self.__get_path_of_key(str(key))
+        record_to_delete = dict()
         if path is None:
             raise ValueError
         with open(path, "rb") as bson_file:
             dict_ = bson.decode_all(bson_file.read())[0]
+            record_to_delete = dict_[str(key)]
             del dict_[str(key)]
         with open(path, "wb") as bson_file:
             bson_file.write(BSON.encode(dict_))
@@ -100,7 +101,7 @@ class DBTable(db_api.DBTable):
         for field_name in self.__indexes:
             with open(self.__indexes[field_name], "rb") as bson_file:
                 index_dict = bson.decode_all(bson_file.read())[0]
-                del index_dict[str(key)]
+                del index_dict[str(record_to_delete.get(field_name, ""))][str(key)]
             with open(self.__indexes[field_name], "wb") as bson_file:
                 bson_file.write(BSON.encode(index_dict))
         self.__num_rows -= 1
@@ -168,10 +169,10 @@ class DBTable(db_api.DBTable):
         self.__indexes[field_to_index] = f"{self.__TABLE_NAME__PATH}_{field_to_index}_index.db"
         index_dict = defaultdict(dict)
         for index in range(self.__num_of_blocks):
-            with open(self.__TABLE_NAME__PATH + f"{index+1}.db", "rb") as bson_file:
+            with open(self.__TABLE_NAME__PATH + f"{index + 1}.db", "rb") as bson_file:
                 dict_ = bson.decode_all(bson_file.read())[0]
                 for key in dict_.keys():
-                    index_dict[dict_[key][field_to_index]][key] = self.__get_path_of_key(key)
+                    index_dict[dict_[key].get(field_to_index, "")][key] = self.__get_path_of_key(key)
                     # check th overflow block
         with open(self.__indexes[field_to_index], "wb") as index_bson_file:
             index_bson_file.write(BSON.encode(index_dict))

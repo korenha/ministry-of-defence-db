@@ -164,6 +164,7 @@ students = db.get_table("Students")
 # students.insert_record([])
 # import bson
 students.create_index('First')
+students.create_index('AAAA')
 with open("db_files/Students/Students_First_index.db","rb") as the_file:
     print(bson.decode_all(the_file.read())[0])
 
