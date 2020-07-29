@@ -9,6 +9,8 @@ from operator import eq, ne, gt, lt, le, ge, is_, is_not
 import pickle
 from pathlib import Path
 from collections import defaultdict
+
+
 operator_dict = {"<": lt, ">": gt, "=": eq, "!=": ne, "<=": le, ">=": ge, "is": is_, "is not": is_not}
 
 
@@ -25,9 +27,9 @@ class DBTable(db_api.DBTable):
         self.__num_rows = 0
         self.__num_of_blocks = 1
         self.__blocks_have_place = {1: self.__MAX_ROWS}
-        self.__indexes = {self.__KEY_FIELD_NAME}
+        self.__indexes = {self.__KEY_FIELD_NAME:f"{self.__TABLE_NAME__PATH}_{self.__KEY_FIELD_NAME}_index.db"}
         os.mkdir(Path(self.__PATH))
-        with open(self.__TABLE_NAME__PATH + "_key_index.db", "wb") as bson_file:
+        with open(self.__indexes[self.__KEY_FIELD_NAME], "wb") as bson_file:
             bson_file.write(BSON.encode(dict()))
 
         with open(self.__TABLE_NAME__PATH + "1.db", "wb") as bson_file:
@@ -59,6 +61,7 @@ class DBTable(db_api.DBTable):
 
     def insert_record(self, values: Dict[str, Any]) -> None:
         # להוסיף טיפול ב-self.__blocks_have_place
+        path = self.__TABLE_NAME__PATH + "1.db"
         if self.__get_path_of_key(str(values[self.__KEY_FIELD_NAME])) is not None:
             raise ValueError
         try:
@@ -67,20 +70,21 @@ class DBTable(db_api.DBTable):
                     pass
         except KeyError:
             raise ValueError
-        with open(self.__TABLE_NAME__PATH + "1.db", "rb") as bson_file:
+        with open(path, "rb") as bson_file:
             dict_ = bson.decode_all(bson_file.read())[0]
             dict_[str(values[self.__KEY_FIELD_NAME])] = values
             print(dict_)
-        with open(self.__TABLE_NAME__PATH + "1.db", "wb") as bson_file:
+        with open(path, "wb") as bson_file:
             bson_file.write(BSON.encode(dict_))
 
         self.__num_rows += 1
-        with open(self.__TABLE_NAME__PATH + "_key_index.db", "rb") as bson_file:
-            keys_dict = bson.decode_all(bson_file.read())[0]
-            keys_dict[str(values[self.__KEY_FIELD_NAME])] = self.__TABLE_NAME__PATH + "1.db"
-        with open(self.__TABLE_NAME__PATH + "_key_index.db", "wb") as bson_file:
-            bson_file.write(BSON.encode(keys_dict))
-
+        for field_name in self.__indexes:
+            with open(self.__indexes[field_name], "rb") as bson_file:
+                index_dict = defaultdict(dict)
+                index_dict.update(bson.decode_all(bson_file.read())[0])
+                index_dict[str(values[field_name])][str(values[self.__KEY_FIELD_NAME])] = path
+            with open(self.__indexes[field_name], "wb") as bson_file:
+                bson_file.write(BSON.encode(index_dict))
         self.__backup()
 
     def delete_record(self, key: Any) -> None:
@@ -93,10 +97,10 @@ class DBTable(db_api.DBTable):
         with open(path, "wb") as bson_file:
             bson_file.write(BSON.encode(dict_))
 
-        with open(self.__TABLE_NAME__PATH + "_key_index.db", "rb") as bson_file:
+        with open(self.__indexes[self.__KEY_FIELD_NAME], "rb") as bson_file:
             keys_dict = bson.decode_all(bson_file.read())[0]
             del keys_dict[str(key)]
-        with open(self.__TABLE_NAME__PATH + "_key_index.db", "wb") as bson_file:
+        with open(self.__indexes[self.__KEY_FIELD_NAME], "wb") as bson_file:
             bson_file.write(BSON.encode(keys_dict))
         self.__num_rows -= 1
         self.__backup()
@@ -116,12 +120,12 @@ class DBTable(db_api.DBTable):
             with open(self.__TABLE_NAME__PATH + f"{i + 1}.db", "wb") as bson_file:
                 bson_file.write(BSON.encode(dict_))
 
-        with open(self.__TABLE_NAME__PATH + "_key_index.db", "rb") as bson_file:
+        with open(self.__indexes[self.__KEY_FIELD_NAME], "rb") as bson_file:
             keys_dict = bson.decode_all(bson_file.read())[0]
             for key in keys_to_delete:
                 del keys_dict[key]
                 self.__num_rows -= 1
-        with open(self.__TABLE_NAME__PATH + "_key_index.db", "wb") as bson_file:
+        with open(self.__indexes[self.__KEY_FIELD_NAME], "wb") as bson_file:
             bson_file.write(BSON.encode(keys_dict))
 
         self.__backup()
@@ -160,7 +164,7 @@ class DBTable(db_api.DBTable):
 
     def create_index(self, field_to_index: str) -> None:
         # check if it not exist
-        self.__indexes.add(field_to_index)
+        self.__indexes[field_to_index] = f"{self.__TABLE_NAME__PATH}_{field_to_index}_index.db"
         index_dict = defaultdict(dict)
         for index in range(self.__num_of_blocks):
             with open(self.__TABLE_NAME__PATH + f"{index+1}.db", "rb") as bson_file:
@@ -168,13 +172,16 @@ class DBTable(db_api.DBTable):
                 for key in dict_.keys():
                     index_dict[dict_[key][field_to_index]][key] = self.__get_path_of_key(key)
                     # check th overflow block
-        with open(self.__TABLE_NAME__PATH + f"_{field_to_index}_index.db", "wb") as index_bson_file:
+        with open(self.__indexes[field_to_index], "wb") as index_bson_file:
             index_bson_file.write(BSON.encode(index_dict))
 
     def __get_path_of_key(self, key: Any) -> str:
-        with open(self.__TABLE_NAME__PATH + "_key_index.db", "rb") as bson_file:
+        with open(self.__indexes[self.__KEY_FIELD_NAME], "rb") as bson_file:
             keys_dict = bson.decode_all(bson_file.read())
-            return keys_dict[0].get(key)
+            try:
+                return keys_dict[0][key][key]
+            except KeyError:
+                return None
 
     @staticmethod
     def __is_meeting_conditions(item, criteria: List[SelectionCriteria]) -> bool:
