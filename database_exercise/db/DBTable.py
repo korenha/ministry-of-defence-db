@@ -72,7 +72,6 @@ class DBTable(db_api.DBTable):
         with open(path, "rb") as bson_file:
             dict_ = bson.decode_all(bson_file.read())[0]
             dict_[str(values[self.__KEY_FIELD_NAME])] = values
-            print(dict_)
         with open(path, "wb") as bson_file:
             bson_file.write(BSON.encode(dict_))
 
@@ -109,26 +108,27 @@ class DBTable(db_api.DBTable):
 
     def delete_records(self, criteria: List[SelectionCriteria]) -> None:
         # צריך לממש אופטימיזציות עם אינדקס
-        keys_to_delete = []
+        records_to_delete = []
         for i in range(self.__num_of_blocks):
             with open(self.__TABLE_NAME__PATH + f"{i + 1}.db", "rb") as bson_file:
                 dict_ = bson.decode_all(bson_file.read())[0]
                 for key in dict_.keys():
                     if self.__is_meeting_conditions(dict_[key], criteria):
-                        keys_to_delete.append(key)
-                for key in keys_to_delete:
-                    del dict_[str(key)]
+                        records_to_delete.append(dict_[key])
+                for record in records_to_delete:
+                    del dict_[str(record[self.__KEY_FIELD_NAME])]
 
             with open(self.__TABLE_NAME__PATH + f"{i + 1}.db", "wb") as bson_file:
                 bson_file.write(BSON.encode(dict_))
 
-        with open(self.__indexes[self.__KEY_FIELD_NAME], "rb") as bson_file:
-            keys_dict = bson.decode_all(bson_file.read())[0]
-            for key in keys_to_delete:
-                del keys_dict[key]
-                self.__num_rows -= 1
-        with open(self.__indexes[self.__KEY_FIELD_NAME], "wb") as bson_file:
-            bson_file.write(BSON.encode(keys_dict))
+        for field_name in self.__indexes:
+            with open(self.__indexes[field_name], "rb") as bson_file:
+                index_dict = bson.decode_all(bson_file.read())[0]
+                for record in records_to_delete:
+                    del index_dict[str(record.get(field_name, ""))][str(record[self.__KEY_FIELD_NAME])]
+                    self.__num_rows -= 1
+            with open(self.__indexes[field_name], "wb") as bson_file:
+                bson_file.write(BSON.encode(index_dict))
 
         self.__backup()
 
