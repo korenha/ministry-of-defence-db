@@ -36,15 +36,6 @@ class DBTable(db_api.DBTable):
         with open(self.__METADATA_PATH, "wb"):
             pass
 
-    def __is_meeting_conditions(self, item, criteria: List[SelectionCriteria]) -> bool:
-        for select in criteria:
-            first = item[select.field_name]
-            operator = select.operator
-            value = select.value
-            if not operator_dict[operator](first, value):
-                return False
-        return True
-
     def __backup(self):
         info = {"num_rows": self.__num_rows,
                 "num_of_blocks": self.__num_of_blocks,
@@ -185,3 +176,12 @@ class DBTable(db_api.DBTable):
             keys_dict = bson.decode_all(bson_file.read())
             return keys_dict[0].get(key)
 
+    @staticmethod
+    def __is_meeting_conditions(item, criteria: List[SelectionCriteria]) -> bool:
+        for select in criteria:
+            first = item[select.field_name]
+            operator = select.operator
+            value = select.value
+            if not operator_dict[operator](first, value):
+                return False
+        return True
