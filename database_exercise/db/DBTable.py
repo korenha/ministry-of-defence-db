@@ -97,11 +97,12 @@ class DBTable(db_api.DBTable):
         with open(path, "wb") as bson_file:
             bson_file.write(BSON.encode(dict_))
 
-        with open(self.__indexes[self.__KEY_FIELD_NAME], "rb") as bson_file:
-            keys_dict = bson.decode_all(bson_file.read())[0]
-            del keys_dict[str(key)]
-        with open(self.__indexes[self.__KEY_FIELD_NAME], "wb") as bson_file:
-            bson_file.write(BSON.encode(keys_dict))
+        for field_name in self.__indexes:
+            with open(self.__indexes[field_name], "rb") as bson_file:
+                index_dict = bson.decode_all(bson_file.read())[0]
+                del index_dict[str(key)]
+            with open(self.__indexes[field_name], "wb") as bson_file:
+                bson_file.write(BSON.encode(index_dict))
         self.__num_rows -= 1
         self.__backup()
 
